@@ -1,1 +1,10 @@
-supybot plugins used by the boot running in jbosstools
+supybot plugins used by the boot running in jbosstools; some are just copies
+for easy maintanence.
+
+All Experimental - so don't blame this for blowing your channel up :)
+
+Jira - plugin that shows info about a jira 
+
+MeetBot - copy of MeetBot
+
+MessageParser - copy from gribble to allow you to configure regular expressions to specfic actions
