@@ -1,0 +1,5 @@
+*.pyc
+*.pck
+test-conf
+test-logs
+
