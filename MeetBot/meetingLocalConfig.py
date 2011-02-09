@@ -7,13 +7,19 @@
 # not possible.
 #
 
-class Config(object):
-    # These are "required":
-    logFileDir = '/Users/max/Dropbox/Public/meetbot'
-    logUrlPrefix = 'http://dl.dropbox.com/u/558690/meetbot/'
+import subprocess
+import supybot.conf as conf
 
+class Config(object):
+    
     # These, you might want to change:
     #MeetBotInfoURL = 'http://wiki.debian.org/MeetBot'
     #filenamePattern = '%(channel)s/%%Y/%(channel)s.%%F-%%H.%%M'
+    def save_hook(self, realtime_update):
+        if(realtime_update):
+            script = conf.supybot.plugins.MeetBot.syncscript()
+            if script:
+                print ("save_hook, calling " + script)
+                subprocess.call([script],shell=True)
 
 

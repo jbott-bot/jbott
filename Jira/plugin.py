@@ -27,15 +27,35 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 ###
-
+import traceback
 import supybot.utils as utils
 from supybot.commands import *
 import supybot.plugins as plugins
 import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
 
-from xmlrpclib import Server
+import pickle
+import os.path
 
+from datetime import datetime, timedelta
+
+from xmlrpclib import Server, Fault
+
+import collections
+
+class Cache(dict):
+    def __init__(self, n, *args, **kwds):
+        self.n = n
+        self.queue = collections.deque()
+        dict.__init__(self, *args, **kwds)
+
+    def __setitem__(self, k, v):
+        self.queue.append(k)
+        dict.__setitem__(self, k, v)
+        if len(self) > self.n:
+            oldk = self.queue.popleft()
+            del self[oldk]
+            
 def getName(id, fields):
     if id == None:
         return "None"
@@ -64,28 +84,43 @@ class Jira(callbacks.Plugin):
     s = ""
     auth = ""
     jiradata = dict()
+    recent = Cache(10)
     
+    def _auth(self):
+        server = self.registryValue('server');
+        self.s = Server(server)
+        self.log.info('Authenticaing on server: ' + server + ' with ' + self.registryValue('user'))
+        self.auth = self.s.jira1.login(self.registryValue('user'), self.registryValue('password'))
+
     def __init__(self, irc):
         self.__parent = super(Jira, self)
         self.__parent.__init__(irc)
 
-        server = self.registryValue('server');
-        self.log.info('Using server: ' + server)
-        self.s = Server(server)
-        self.log.info('Jira Login')
-        self.auth = self.s.jira1.login(self.registryValue('user'), self.registryValue('password'))
-        self.log.info('Jira Get Issue Types')
-        self.jiradata['types'] = self.s.jira1.getIssueTypes(self.auth)
-        self.log.info('Jira Get Issue Subtask Types')
-        self.jiradata['subtypes'] = self.s.jira1.getSubTaskIssueTypes(self.auth)
-        self.log.info('Jira Get Statuses')
-        self.jiradata['statuses'] = self.s.jira1.getStatuses(self.auth)
-        self.log.info('Jira Get Priorities')  
-        self.jiradata['priorities'] = self.s.jira1.getPriorities(self.auth)
-        self.log.info('Jira Get Resolutions')  
-        self.jiradata['resolutions'] = self.s.jira1.getResolutions(self.auth)
-   
-
+        self._auth()
+        
+        jiracache = "jiracache.pck"
+        if(os.path.exists(jiracache)):
+            file = open(jiracache, "r") # read mode
+            self.log.info("Reading cached jiradata from " + str(file))
+            self.jiradata = pickle.load(file)
+            file.close()
+        else:
+            self.log.info('Jira Get Issue Types')
+            self.jiradata['types'] = self.s.jira1.getIssueTypes(self.auth)
+            self.log.info('Jira Get Issue Subtask Types')
+            self.jiradata['subtypes'] = self.s.jira1.getSubTaskIssueTypes(self.auth)
+            self.log.info('Jira Get Statuses')
+            self.jiradata['statuses'] = self.s.jira1.getStatuses(self.auth)
+            self.log.info('Jira Get Priorities')  
+            self.jiradata['priorities'] = self.s.jira1.getPriorities(self.auth)
+            self.log.info('Jira Get Resolutions')  
+            self.jiradata['resolutions'] = self.s.jira1.getResolutions(self.auth)
+            file = open(jiracache, "w") # write mode
+            self.log.info("Writing jiradata to " + str(file))
+            pickle.dump(self.jiradata, file)
+            file.close()
+        
+    
     def jira(self, irc, msg, args, text):
         """<text>
 
@@ -96,33 +131,54 @@ class Jira(callbacks.Plugin):
         """
         text = ircutils.standardSubstitute(irc, msg, text)
         result = []
-        self.log.info('Looking up: ' + text)  
-        issue = self.s.jira1.getIssue(self.auth, text)
+        self.log.info('Looking up: ' + text)
 
-	#for k,v in sorted(issue.items()):
-    	#	irc.reply(k, prefixNick=True)
- 
-        #irc.reply(issue['description'], prefixNick=True)
-        result.append(getName(issue['type'], self.jiradata['types']) + ": ")
-	result.append("[" + issue['key'] + "]")
-        result.append(" " + issue['summary'])
-        result.append(" [")
-        result.append(getName(issue['status'], self.jiradata['statuses']) + ", ")
-        result.append(getName(issue['priority'], self.jiradata['priorities']) + ", ")
-
-        if('components' in issue):
-            result.append("(")
-            for f in issue['components']:
-                result.append(encode(f['name']))
-            result.append("), ")
-        if('assignee' in issue):
-            result.append(issue['assignee'])  #should be username ?
+        if(text in self.recent):
+            last = self.recent[text]
+            now = datetime.now()
+            self.log.info('last seen at ' + str(last) + ' now is ' + str(now) + ' ' + str(now-last))
+            if ((now - last) < timedelta (seconds = 10)):
+                irc.noReply()
+                return
         else:
-            result.append("Unassigned")
-        result.append("] ")
-        result.append(self.registryValue('browseurl') + issue['key'])
-        irc.reply("".join(result), prefixNick=False)
+            self.log.info('new lookup')
+            
+        self.recent[text] = datetime.now()
 
+        try:
+            issue = self.s.jira1.getIssue(self.auth, text)
+
+            #for k,v in sorted(issue.items()):
+            #	irc.reply(k, prefixNick=True)
+
+            #irc.reply(issue['description'], prefixNick=True)
+            result.append(getName(issue['type'], self.jiradata['types']) + ": ")
+            result.append("[" + issue['key'] + "]")
+            result.append(" " + issue['summary'])
+            result.append(" [")
+            result.append(getName(issue['status'], self.jiradata['statuses']) + ", ")
+            result.append(getName(issue['priority'], self.jiradata['priorities']) + ", ")
+
+            if('components' in issue):
+                components = []
+                for f in issue['components']:
+                    components.append(encode(f['name']))
+                if(components):
+                    result.append("(")
+                    result.append(", ".join(str(x) for x in components))
+                    result.append("), ")
+            if('assignee' in issue):
+                result.append(issue['assignee'])  #should be username ?
+            else:
+                result.append("Unassigned")
+            result.append("] ")
+            result.append(self.registryValue('browseurl') + issue['key'])
+            irc.reply("".join(result), prefixNick=False)
+        except Fault, f:
+            self.log.info("Fault when looking up " + text)
+            self.log.info(str(Fault))
+            irc.noReply()
+            self._auth()
     jira = wrap(jira, ['text'])
 
 

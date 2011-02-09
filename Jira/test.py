@@ -33,9 +33,31 @@ from supybot.test import *
 class JiraTestCase(PluginTestCase):
     plugins = ('Jira',)
 
+    def setUp(self):
+        # Set conf variables appropriately.
+        conf.supybot.plugins.Jira.server.setValue('https://issues.jboss.org/rpc/xmlrpc')
+        conf.supybot.plugins.Jira.user.setValue('') #when testing set these to something real
+        conf.supybot.plugins.Jira.password.setValue('') # yes, its a hack but not found a good way to externalize it
+        conf.supybot.plugins.Jira.browseurl.setValue('https://issues.jboss.org/browse/')
+        PluginTestCase.setUp(self)
+        
     def testJira(self):
         self.assertHelp('jira')
         self.assertResponse('jira JBIDE-1', 'Feature Request: [JBIDE-1] Create Jave Server Faces designer plugin [Closed, Major, (JSF), Unassigned] https://issues.jboss.org/browse/JBIDE-1')
 
+    def testMulticomponent(self):
+        self.assertHelp('jira')
+        self.assertResponse('jira JBIDE-7775', 'Task: [JBIDE-7775] Provide documentation URL link for the latest release  [Open, Minor, (Build/Releng, Help), mcaspers] https://issues.jboss.org/browse/JBIDE-7775')
 
+    def testNonExistingJira(self):
+        self.assertNoResponse('jira wonka-issue')
+
+    def testNonExistingVsWorking(self):
+        self.assertNoResponse('jira whatever')
+        self.assertResponse('jira JBIDE-1', 'Feature Request: [JBIDE-1] Create Jave Server Faces designer plugin [Closed, Major, (JSF), Unassigned] https://issues.jboss.org/browse/JBIDE-1')
+
+    def testDontReplyTwice(self):
+        self.assertResponse('jira JBIDE-1', 'Feature Request: [JBIDE-1] Create Jave Server Faces designer plugin [Closed, Major, (JSF), Unassigned] https://issues.jboss.org/browse/JBIDE-1')
+        self.assertNoResponse('jira JBIDE-1')
+            
 # vim:set shiftwidth=4 tabstop=4 expandtab textwidth=79:

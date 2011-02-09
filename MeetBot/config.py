@@ -47,6 +47,8 @@ MeetBot = conf.registerPlugin('MeetBot')
 conf.registerGlobalValue(MeetBot, 'enableSupybotBasedConfig',
     registry.Boolean(False, """Enable configuration via the supybot config """
                             """mechanism."""))
+conf.registerGlobalValue(MeetBot, 'syncscript',
+    registry.String('', """Script to run on savehook"""))
 
 
 
