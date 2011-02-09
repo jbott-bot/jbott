@@ -52,5 +52,7 @@ conf.registerGlobalValue(Jira, 'password',
                          registry.String("", """Password used to access jira server"""))
 conf.registerGlobalValue(Jira, 'browseurl',
                          registry.String("", """URL for browsing the issues by key, such as https://issues.jboss.org/browse/; the key is appended to the url"""))
+conf.registerGlobalValue(Jira, 'duplicate_graceperiod',
+                         registry.Integer(60, """Number of seconds before we will repeat the same jira"""))
 
 # vim:set shiftwidth=4 tabstop=4 expandtab textwidth=79:

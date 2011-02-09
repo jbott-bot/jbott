@@ -85,12 +85,18 @@ class Jira(callbacks.Plugin):
     auth = ""
     jiradata = dict()
     recent = Cache(10)
+    lastAuth = datetime.now()
     
     def _auth(self):
-        server = self.registryValue('server');
-        self.s = Server(server)
-        self.log.info('Authenticaing on server: ' + server + ' with ' + self.registryValue('user'))
-        self.auth = self.s.jira1.login(self.registryValue('user'), self.registryValue('password'))
+        now = datetime.now()
+        if (self.auth and (now - self.lastAuth) < timedelta (seconds = 60)):
+            self.log.info('reusing auth')
+        else:
+            server = self.registryValue('server');
+            self.s = Server(server)
+            self.log.info('Authenticaing on server: ' + server + ' with ' + self.registryValue('user'))
+            self.auth = self.s.jira1.login(self.registryValue('user'), self.registryValue('password'))
+            self.lastAuth = datetime.now()
 
     def __init__(self, irc):
         self.__parent = super(Jira, self)
@@ -133,17 +139,20 @@ class Jira(callbacks.Plugin):
         result = []
         self.log.info('Looking up: ' + text)
 
-        if(text in self.recent):
-            last = self.recent[text]
+        self._auth()
+        
+        cachekey = "_" + text # todo: show channel
+        if(cachekey in self.recent):
+            last = self.recent[cachekey]
             now = datetime.now()
-            self.log.info('last seen at ' + str(last) + ' now is ' + str(now) + ' ' + str(now-last))
-            if ((now - last) < timedelta (seconds = 10)):
+            self.log.info('last seen ' + cachekey + ' at ' + str(last) + ' now is ' + str(now) + ' ' + str(now-last))
+            if ((now - last) < timedelta (seconds = self.registryValue('duplicate_graceperiod'))):
                 irc.noReply()
                 return
         else:
             self.log.info('new lookup')
             
-        self.recent[text] = datetime.now()
+        self.recent[cachekey] = datetime.now()
 
         try:
             issue = self.s.jira1.getIssue(self.auth, text)
@@ -178,7 +187,7 @@ class Jira(callbacks.Plugin):
             self.log.info("Fault when looking up " + text)
             self.log.info(str(Fault))
             irc.noReply()
-            self._auth()
+            
     jira = wrap(jira, ['text'])
 
 
