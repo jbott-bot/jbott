@@ -84,7 +84,7 @@ class Jira(callbacks.Plugin):
     s = ""
     auth = ""
     jiradata = dict()
-    recent = Cache(10)
+    recent = Cache(100)
     lastAuth = datetime.now()
     
     def _auth(self):
@@ -141,7 +141,7 @@ class Jira(callbacks.Plugin):
 
         self._auth()
         
-        cachekey = "_" + text # todo: show channel
+        cachekey = msg.args[0] + "_" + text # todo: show channel
         if(cachekey in self.recent):
             last = self.recent[cachekey]
             now = datetime.now()
