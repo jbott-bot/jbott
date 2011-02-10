@@ -54,7 +54,8 @@ class Cache(dict):
         dict.__setitem__(self, k, v)
         if len(self) > self.n:
             oldk = self.queue.popleft()
-            del self[oldk]
+            if oldk in self:
+                del self[oldk]
             
 def getName(id, fields):
     if id == None:
