@@ -16,7 +16,7 @@ class Config(object):
     #MeetBotInfoURL = 'http://wiki.debian.org/MeetBot'
     #filenamePattern = '%(channel)s/%%Y/%(channel)s.%%F-%%H.%%M'
     def save_hook(self, realtime_update):
-        if(realtime_update):
+        if(not realtime_update):
             script = conf.supybot.plugins.MeetBot.syncscript()
             if script:
                 print ("save_hook, calling " + script)
