@@ -185,8 +185,7 @@ class Jira(callbacks.Plugin):
             result.append(self.registryValue('browseurl') + issue['key'])
             irc.reply("".join(result), prefixNick=False)
         except Fault, f:
-            self.log.info("Fault when looking up " + text)
-            self.log.info(str(Fault))
+            self.log.exception("Error when looking up " + text)
             irc.noReply()
             
     jira = wrap(jira, ['text'])
