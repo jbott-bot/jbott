@@ -33,6 +33,7 @@ import time
 import os
 import re
 import stat
+import pprint
 
 import writers
 import items
@@ -144,10 +145,18 @@ class Config(object):
         else:
             pattern = self.filenamePattern
         channel = self.M.channel.strip('# ').lower().replace('/', '')
+        if self.M.network:
+            network = self.M.network
+        else:
+            network = "_unknown_"
+
         if self.M._meetingname:
             meetingname = self.M._meetingname.replace('/', '')
         else:
             meetingname = channel
+        #print("pattern locals")
+        #pp = pprint.PrettyPrinter(indent=4)
+        #print(pp.pprint(locals()))
         path = pattern%locals()
         path = time.strftime(path, self.M.starttime)
         # If we want the URL name, append URL prefix and return
@@ -155,6 +164,7 @@ class Config(object):
             return os.path.join(self.logUrlPrefix, path)
         path = os.path.join(self.logFileDir, path)
         # make directory if it doesn't exist...
+        print(path)
         dirname = os.path.dirname(path)
         if not url and dirname and not os.access(dirname, os.F_OK):
             os.makedirs(dirname)
@@ -414,7 +424,7 @@ class MeetingCommands(object):
 class Meeting(MeetingCommands, object):
     _lurk = False
     _restrictlogs = False
-    def __init__(self, channel, owner, oldtopic=None,
+    def __init__(self, channel, owner, network=None, oldtopic=None,
                  filename=None, writeRawLog=False,
                  setTopic=None, sendReply=None, getRegistryValue=None,
                  safeMode=False):
@@ -427,6 +437,7 @@ class Meeting(MeetingCommands, object):
             self._setTopic = setTopic
         self.owner = owner
         self.channel = channel
+        self.network = network
         self.currenttopic = ""
         if oldtopic:
             self.oldtopic = self.config.dec(oldtopic)
@@ -594,6 +605,8 @@ if __name__ == '__main__':
                 if M.owner is None:
                     M.owner = nick ; M.chairs = {nick:True}
                 M.addline(nick, line, time_=time_)
+            else:
+                print("No match for: " + line)
             # match /me lines
             m = loglineAction_re.match(line)
             if m:

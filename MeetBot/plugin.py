@@ -98,7 +98,7 @@ class MeetBot(callbacks.Plugin):
                 irc.sendMsg(ircmsgs.topic(channel, x))
             def _sendReply(x):
                 irc.sendMsg(ircmsgs.privmsg(channel, x))
-            M = meeting.Meeting(channel=channel, owner=nick,
+            M = meeting.Meeting(channel=channel, network=irc.msg.tags['receivedOn'], owner=nick,
                                 oldtopic=irc.state.channels[channel].topic,
                                 writeRawLog=True,
                                 setTopic = _setTopic, sendReply = _sendReply,
