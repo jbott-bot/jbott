@@ -135,6 +135,20 @@ adjust and have MeetBot re-process the logs later.
   the channel (saving the original topic to be restored at the end of
   the meeting).  (Chairs only.)
 
+#addtopic
+  Add topic to a list of topics (agenda) for easy reference with #nexttopic.
+  Allows to setup a predefined agenda at start of meeting and to record
+  additional topics during a meeting.
+
+#nexttopic (alias #poptopic)
+  Make the topic the next in the list of topics.
+
+#listtopics
+  List the remaining topics.
+
+#cleartopics
+  Clear the list of topics.
+
 #agreed (alias #agree)
   Mark something as agreed on.  The rest of the line is the details.
   (Chairs only.)

@@ -58,7 +58,7 @@ class Config(object):
     # signs (%%).  This will be joined with the directories above.
     filenamePattern = '%(channel)s/%%Y/%(channel)s.%%F-%%H.%%M'
     # Where to say to go for more information about MeetBot
-    MeetBotInfoURL = 'http://wiki.debian.org/MeetBot'
+    MeetBotInfoURL = 'https://raw.github.com/maxandersen/jbott/master/MeetBot/doc/Manual.txt'
     # This is used with the #restrict command to remove permissions from files.
     RestrictPerm = stat.S_IRWXO|stat.S_IRWXG  # g,o perm zeroed
     # RestrictPerm = stat.S_IRWXU|stat.S_IRWXO|stat.S_IRWXG  #u,g,o perm zeroed
@@ -86,7 +86,7 @@ class Config(object):
               "The chair is %(chair)s. Information about MeetBot at "
               "%(MeetBotInfoURL)s.\n"
               "Useful Commands: #action #agreed #help #info #idea #link "
-              "#topic.")
+              "#topic #addtopic #nexttopic.")
     endMeetingMessage = ("Meeting ended %(endtime)s %(timeZone)s.  "
                          "Information about MeetBot at %(MeetBotInfoURL)s . "
                          "(v %(__version__)s)\n"
@@ -276,6 +276,7 @@ class MeetingCommands(object):
         if not self.isChair(nick): return
         if self.oldtopic:
             self.topic(self.oldtopic)
+        self.reply("Ending meeting. Generating minutes. Be patient :)")
         self.endtime = time_
         self.config.save()
         endtime = time.asctime(time_)
@@ -304,8 +305,37 @@ class MeetingCommands(object):
         else:
             self._meetingTopic = line
         self.settopic()
+    def do_addtopic(self, nick, line, **kwargs):
+        """Add a topic to the end of the agenda - chairs only."""
+        if not self.isChair(nick): return
+        self.agenda = self.agenda + [line]
+    def do_pushtopic(self, nick, line, **kwargs):
+        """Push a topic to the front of the agenda - chairs only."""
+        if not self.isChair(nick): return
+        self.agenda = [line] + self.agenda
+    def do_nexttopic(self, nick, line, **kwargs):
+        """Set topic to the next topic in the agenda - chairs only."""
+        if not self.isChair(nick): return
+        if self.agenda:
+             nexttopic = self.agenda.pop(0)
+             self.reply("#topic %s" % nexttopic)
+             self.do_topic(nick, nexttopic, **kwargs)
+        else:
+             self.reply("No next topic. Use #addtopic to add topics.")
+    do_poptopic = do_nexttopic
+    def do_listtopics(self, nick, line, **kwargs): 
+        if not self.isChair(nick): return
+        if not self.agenda:
+             self.reply("Topic list is empty. Use #addtopic to add topics.")
+        else:
+             for index, item in enumerate(self.agenda):
+                self.reply("%d. %s" % (index + 1, item))
+ 	     self.reply("Use #nexttopic to start next topic")
+    def do_cleartopics(self, nick, line, **kwargs):
+        if not self.isChair(nick): return
+        self.agenda = []
     def do_save(self, nick, time_, **kwargs):
-        """Add a chair to the meeting."""
+        """Save the meeting."""
         if not self.isChair(nick): return
         self.endtime = time_
         self.config.save()
@@ -453,7 +483,7 @@ class Meeting(MeetingCommands, object):
         self._meetingIsOver = False
         if filename:
             self._filename = filename
-
+        self.agenda = [];
     # These commands are callbacks to manipulate the IRC protocol.
     # set self._sendReply and self._setTopic to an callback to do these things.
     def reply(self, x):
